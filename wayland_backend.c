@@ -10,6 +10,7 @@
 #include <wayland-client.h>
 #include "xdg-shell.h"
 #include "xdg-decorations.h"
+#include "wayland_utils.h"
 #include <wayland-egl.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -195,7 +196,7 @@ static const char *fragment_shader_src =
 static GLuint compile_shader(const char *src, GLenum type)
 {
     GLuint shader = glCreateShader(type);
-    glShaderSource(shader, 1, &src, NULL);
+    set_shader_src_file(src, shader);
     glCompileShader(shader);
 
     GLint success;
@@ -213,8 +214,8 @@ static GLuint compile_shader(const char *src, GLenum type)
 
 static void wayland_init_gl(void)
 {
-    GLuint vertex_shader = compile_shader(vertex_shader_src, GL_VERTEX_SHADER);
-    GLuint fragment_shader = compile_shader(fragment_shader_src, GL_FRAGMENT_SHADER);
+    GLuint vertex_shader = compile_shader("vertex_shader.glsl", GL_VERTEX_SHADER);
+    GLuint fragment_shader = compile_shader("frag_shader.glsl", GL_FRAGMENT_SHADER);
 
     state.shader_program = glCreateProgram();
     glAttachShader(state.shader_program, vertex_shader);
