@@ -175,24 +175,6 @@ static void wayland_cleanup_egl(void)
     eglTerminate(state.egl.dpy);
 }
 
-static const char *vertex_shader_src =
-    "#version 450 core\n"
-    "layout (location = 0) in vec2 aPos;\n"
-    "layout (location = 1) in vec3 aColor;\n"
-    "out vec3 fragColor;\n"
-    "void main() {\n"
-    "    fragColor = aColor;\n"
-    "    gl_Position = vec4(aPos, 0.0, 1.0);\n"
-    "}";
-
-static const char *fragment_shader_src =
-    "#version 450 core\n"
-    "in vec3 fragColor;\n"
-    "out vec4 color;\n"
-    "void main() {\n"
-    "    color = vec4(fragColor, 1.0);\n"
-    "}";
-
 static GLuint compile_shader(const char *src, GLenum type)
 {
     GLuint shader = glCreateShader(type);
