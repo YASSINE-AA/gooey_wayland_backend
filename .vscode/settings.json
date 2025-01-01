@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "wayland-client-protocol.h": "c",
+        "protocol.h": "c",
+        "init_window.h": "c",
+        "stdlib.h": "c",
+        "wayland-egl.h": "c",
+        "glad.h": "c",
+        "eglext.h": "c",
+        "gl3.h": "c",
+        "egl.h": "c"
+    }
+}
