@@ -4,5 +4,7 @@ CFLAGS = -I/usr/include/cairo -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/includ
 test : 
 	gcc xdg-shell.c wayland_utils.c xdg-decorations.c glad.c wayland_backend.c ${CFLAGS} -o build/test ${LIBS}
 
+run:
+	./build/test
 clean:
 	rm -f *.o *~ 
