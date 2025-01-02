@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include "linmath.h"
 #include <freetype2/freetype/freetype.h>
+#include <unistd.h>
+
 typedef struct Vertex {
     vec2 pos;
     vec3 col;

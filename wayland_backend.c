@@ -1,3 +1,20 @@
+/*
+ Copyright (c) 2025 Yassine Ahmed Ali
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #define _POSIX_C_SOURCE 200112L
 #include <errno.h>
 #include <fcntl.h>
@@ -164,6 +181,11 @@ static void wayland_init_egl(void)
     {
         fprintf(stderr, "Failed to bind OpenGL API\n");
         exit(EXIT_FAILURE);
+    }
+    EGLint error = eglGetError();
+    if (error != EGL_SUCCESS)
+    {
+        fprintf(stderr, "EGL error: %x\n", error);
     }
 }
 
@@ -421,12 +443,20 @@ static void wayland_create_window(void)
 
 static void wayland_render()
 {
-    while (wl_display_dispatch_pending(ctx.wl_display) != -1)
+    while (true)
     {
+        if (wl_display_dispatch_pending(ctx.wl_display) == -1)
+        {
+            fprintf(stderr, "Wayland dispatch error\n");
+            break;
+        }
+
         for (size_t window_id = 0; window_id < ctx.window_count; ++window_id)
         {
-            wayland_make_ctx_current(window_id);
+            eglMakeCurrent(ctx.egl.dpy, ctx.egl.surfaces[window_id], ctx.egl.surfaces[window_id], ctx.egl.ctx);
+
             draw_frame(window_id);
+
             eglSwapBuffers(ctx.egl.dpy, ctx.egl.surfaces[window_id]);
         }
     }
@@ -439,6 +469,12 @@ int main(int argc, char *argv[])
     wayland_init_egl();
     wayland_create_window();
     wayland_create_window();
+
+    wayland_create_window();
+
+    wayland_create_window();
+    wayland_create_window();
+
     wayland_render();
     wayland_cleanup_egl();
     wayland_cleanup_gl();
