@@ -468,13 +468,6 @@ int main(int argc, char *argv[])
     wayland_setup();
     wayland_init_egl();
     wayland_create_window();
-    wayland_create_window();
-
-    wayland_create_window();
-
-    wayland_create_window();
-    wayland_create_window();
-
     wayland_render();
     wayland_cleanup_egl();
     wayland_cleanup_gl();
