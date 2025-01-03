@@ -28,7 +28,3 @@ The table below lists the features supported by the Wayland backend, along with 
 | Drag-and-Drop Support            | ⬜ Planned    | Enable drag-and-drop operations.               |
 | Vulkan Rendering                 | ⬜ Planned    | Add Vulkan rendering alongside OpenGL.         |
 | Debugging and Logging            | ⬜ Planned    | Enhanced error and event logging.              |
-
-### Legend
-- ✅ Implemented: The feature is fully functional.
-- ⬜ Planned: The feature is planned for future implementation.
