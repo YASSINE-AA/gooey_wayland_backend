@@ -15,7 +15,6 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define _POSIX_C_SOURCE 200112L
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -125,6 +124,16 @@ struct GooeyBackendContext
 
 static struct GooeyBackendContext ctx = {0};
 
+static void xdg_wm_base_ping(void *data, struct xdg_wm_base *xdg_wm_base,
+                             uint32_t serial)
+{
+    xdg_wm_base_pong(xdg_wm_base, serial);
+}
+
+static const struct xdg_wm_base_listener xdg_wm_base_listener = {
+    .ping = xdg_wm_base_ping,
+};
+
 void check_shader_compile(GLuint shader)
 {
     GLint success;
@@ -176,7 +185,7 @@ static void
 wl_pointer_motion(void *data, struct wl_pointer *wl_pointer, uint32_t time,
                   wl_fixed_t surface_x, wl_fixed_t surface_y)
 {
-    struct GooeyBackendContext *context = (struct GooeyBackendContext *) data;
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *)data;
     context->pointer_event.event_mask |= POINTER_EVENT_MOTION;
     context->pointer_event.time = time;
     context->pointer_event.surface_x = surface_x,
@@ -187,7 +196,7 @@ static void
 wl_pointer_button(void *data, struct wl_pointer *wl_pointer, uint32_t serial,
                   uint32_t time, uint32_t button, uint32_t state)
 {
-    struct GooeyBackendContext *context = (struct GooeyBackendContext *) data;
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *)data;
     context->pointer_event.event_mask |= POINTER_EVENT_BUTTON;
     context->pointer_event.time = time;
     context->pointer_event.serial = serial;
@@ -197,113 +206,119 @@ wl_pointer_button(void *data, struct wl_pointer *wl_pointer, uint32_t serial,
 
 static void
 wl_pointer_axis(void *data, struct wl_pointer *wl_pointer, uint32_t time,
-               uint32_t axis, wl_fixed_t value)
+                uint32_t axis, wl_fixed_t value)
 {
-    struct GooeyBackendContext *context = (struct GooeyBackendContext *) data;
-       context->pointer_event.event_mask |= POINTER_EVENT_AXIS;
-       context->pointer_event.time = time;
-       context->pointer_event.axes[axis].valid = true;
-       context->pointer_event.axes[axis].value = value;
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *)data;
+    context->pointer_event.event_mask |= POINTER_EVENT_AXIS;
+    context->pointer_event.time = time;
+    context->pointer_event.axes[axis].valid = true;
+    context->pointer_event.axes[axis].value = value;
 }
 
 static void
 wl_pointer_axis_source(void *data, struct wl_pointer *wl_pointer,
-               uint32_t axis_source)
+                       uint32_t axis_source)
 {
-    struct GooeyBackendContext *context = (struct GooeyBackendContext *) data;
-       context->pointer_event.event_mask |= POINTER_EVENT_AXIS_SOURCE;
-       context->pointer_event.axis_source = axis_source;
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *)data;
+    context->pointer_event.event_mask |= POINTER_EVENT_AXIS_SOURCE;
+    context->pointer_event.axis_source = axis_source;
 }
 
 static void
 wl_pointer_axis_stop(void *data, struct wl_pointer *wl_pointer,
-               uint32_t time, uint32_t axis)
+                     uint32_t time, uint32_t axis)
 {
-    struct GooeyBackendContext *context = (struct GooeyBackendContext *) data;
-       context->pointer_event.time = time;
-       context->pointer_event.event_mask |= POINTER_EVENT_AXIS_STOP;
-       context->pointer_event.axes[axis].valid = true;
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *)data;
+    context->pointer_event.time = time;
+    context->pointer_event.event_mask |= POINTER_EVENT_AXIS_STOP;
+    context->pointer_event.axes[axis].valid = true;
 }
 
 static void
 wl_pointer_axis_discrete(void *data, struct wl_pointer *wl_pointer,
-               uint32_t axis, int32_t discrete)
+                         uint32_t axis, int32_t discrete)
 {
-    struct GooeyBackendContext *context = (struct GooeyBackendContext *) data;
-       context->pointer_event.event_mask |= POINTER_EVENT_AXIS_DISCRETE;
-       context->pointer_event.axes[axis].valid = true;
-       context->pointer_event.axes[axis].discrete = discrete;
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *)data;
+    context->pointer_event.event_mask |= POINTER_EVENT_AXIS_DISCRETE;
+    context->pointer_event.axes[axis].valid = true;
+    context->pointer_event.axes[axis].discrete = discrete;
 }
 
 static void
 wl_pointer_frame(void *data, struct wl_pointer *wl_pointer)
 {
-    struct GooeyBackendContext *context = (struct GooeyBackendContext *) data;
-       struct pointer_event *event = &context->pointer_event;
-       fprintf(stderr, "pointer frame @ %d: ", event->time);
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *)data;
+    struct pointer_event *event = &context->pointer_event;
+    fprintf(stderr, "pointer frame @ %d: ", event->time);
 
-       if (event->event_mask & POINTER_EVENT_ENTER) {
-               fprintf(stderr, "entered %f, %f ",
-                               wl_fixed_to_double(event->surface_x),
-                               wl_fixed_to_double(event->surface_y));
-       }
+    if (event->event_mask & POINTER_EVENT_ENTER)
+    {
+        fprintf(stderr, "entered %f, %f ",
+                wl_fixed_to_double(event->surface_x),
+                wl_fixed_to_double(event->surface_y));
+    }
 
-       if (event->event_mask & POINTER_EVENT_LEAVE) {
-               fprintf(stderr, "leave");
-       }
+    if (event->event_mask & POINTER_EVENT_LEAVE)
+    {
+        fprintf(stderr, "leave");
+    }
 
-       if (event->event_mask & POINTER_EVENT_MOTION) {
-               fprintf(stderr, "motion %f, %f ",
-                               wl_fixed_to_double(event->surface_x),
-                               wl_fixed_to_double(event->surface_y));
-       }
+    if (event->event_mask & POINTER_EVENT_MOTION)
+    {
+        fprintf(stderr, "motion %f, %f ",
+                wl_fixed_to_double(event->surface_x),
+                wl_fixed_to_double(event->surface_y));
+    }
 
-       if (event->event_mask & POINTER_EVENT_BUTTON) {
-               char *state = event->state == WL_POINTER_BUTTON_STATE_RELEASED ?
-                       "released" : "pressed";
-               fprintf(stderr, "button %d %s ", event->button, state);
-       }
+    if (event->event_mask & POINTER_EVENT_BUTTON)
+    {
+        char *state = event->state == WL_POINTER_BUTTON_STATE_RELEASED ? "released" : "pressed";
+        fprintf(stderr, "button %d %s ", event->button, state);
+    }
 
-       uint32_t axis_events = POINTER_EVENT_AXIS
-               | POINTER_EVENT_AXIS_SOURCE
-               | POINTER_EVENT_AXIS_STOP
-               | POINTER_EVENT_AXIS_DISCRETE;
-       char *axis_name[2] = {
-               [WL_POINTER_AXIS_VERTICAL_SCROLL] = "vertical",
-               [WL_POINTER_AXIS_HORIZONTAL_SCROLL] = "horizontal",
-       };
-       char *axis_source[4] = {
-               [WL_POINTER_AXIS_SOURCE_WHEEL] = "wheel",
-               [WL_POINTER_AXIS_SOURCE_FINGER] = "finger",
-               [WL_POINTER_AXIS_SOURCE_CONTINUOUS] = "continuous",
-               [WL_POINTER_AXIS_SOURCE_WHEEL_TILT] = "wheel tilt",
-       };
-       if (event->event_mask & axis_events) {
-               for (size_t i = 0; i < 2; ++i) {
-                       if (!event->axes[i].valid) {
-                               continue;
-                       }
-                       fprintf(stderr, "%s axis ", axis_name[i]);
-                       if (event->event_mask & POINTER_EVENT_AXIS) {
-                               fprintf(stderr, "value %f ", wl_fixed_to_double(
-                                                       event->axes[i].value));
-                       }
-                       if (event->event_mask & POINTER_EVENT_AXIS_DISCRETE) {
-                               fprintf(stderr, "discrete %d ",
-                                               event->axes[i].discrete);
-                       }
-                       if (event->event_mask & POINTER_EVENT_AXIS_SOURCE) {
-                               fprintf(stderr, "via %s ",
-                                               axis_source[event->axis_source]);
-                       }
-                       if (event->event_mask & POINTER_EVENT_AXIS_STOP) {
-                               fprintf(stderr, "(stopped) ");
-                       }
-               }
-       }
+    uint32_t axis_events = POINTER_EVENT_AXIS | POINTER_EVENT_AXIS_SOURCE | POINTER_EVENT_AXIS_STOP | POINTER_EVENT_AXIS_DISCRETE;
+    char *axis_name[2] = {
+        [WL_POINTER_AXIS_VERTICAL_SCROLL] = "vertical",
+        [WL_POINTER_AXIS_HORIZONTAL_SCROLL] = "horizontal",
+    };
+    char *axis_source[4] = {
+        [WL_POINTER_AXIS_SOURCE_WHEEL] = "wheel",
+        [WL_POINTER_AXIS_SOURCE_FINGER] = "finger",
+        [WL_POINTER_AXIS_SOURCE_CONTINUOUS] = "continuous",
+        [WL_POINTER_AXIS_SOURCE_WHEEL_TILT] = "wheel tilt",
+    };
+    if (event->event_mask & axis_events)
+    {
+        for (size_t i = 0; i < 2; ++i)
+        {
+            if (!event->axes[i].valid)
+            {
+                continue;
+            }
+            fprintf(stderr, "%s axis ", axis_name[i]);
+            if (event->event_mask & POINTER_EVENT_AXIS)
+            {
+                fprintf(stderr, "value %f ", wl_fixed_to_double(event->axes[i].value));
+            }
+            if (event->event_mask & POINTER_EVENT_AXIS_DISCRETE)
+            {
+                fprintf(stderr, "discrete %d ",
+                        event->axes[i].discrete);
+            }
+            if (event->event_mask & POINTER_EVENT_AXIS_SOURCE)
+            {
+                fprintf(stderr, "via %s ",
+                        axis_source[event->axis_source]);
+            }
+            if (event->event_mask & POINTER_EVENT_AXIS_STOP)
+            {
+                fprintf(stderr, "(stopped) ");
+            }
+        }
+    }
 
-       fprintf(stderr, "\n");
-       memset(event, 0, sizeof(*event));
+    fprintf(stderr, "\n");
+    memset(event, 0, sizeof(*event));
 }
 
 static const struct wl_pointer_listener wl_pointer_listener = {
@@ -371,7 +386,7 @@ static void handle_global(void *data, struct wl_registry *registry, uint32_t id,
     }
     else if (strcmp(interface, wl_seat_interface.name) == 0)
     {
-        s->wl_seat = wl_registry_bind(s->wl_registry, id, &wl_seat_interface, 7);
+        s->wl_seat = wl_registry_bind(s->wl_registry, id, &wl_seat_interface, version);
         wl_seat_add_listener(s->wl_seat, &wl_seat_listener, s);
     }
 }
@@ -382,6 +397,7 @@ static const struct wl_registry_listener registry_listener = {
     .global = handle_global,
     .global_remove = handle_global_remove,
 };
+
 static void wayland_init_egl(void)
 {
 
@@ -537,30 +553,96 @@ static void wayland_init_gl(void)
     }
 }
 
+static void wayland_make_ctx_current(int window_id)
+{
+    if (!eglMakeCurrent(ctx.egl.dpy, ctx.egl.surfaces[window_id], ctx.egl.surfaces[window_id], ctx.egl.ctx))
+    {
+        fprintf(stderr, "Failed to make EGL context current\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
 static void draw_frame(int window_id)
 {
+    wayland_make_ctx_current(window_id);
+
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     glUseProgram(ctx.shape_program);
-
     glBindVertexArray(ctx.shape_vaos[window_id]);
 
-    Vertex vertices[] = {
-        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-        {{-0.5f, 0.5f}, {1.0f, 1.0f, 0.0f}}};
-
-    glBindBuffer(GL_ARRAY_BUFFER, ctx.shape_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    static bool initialized = false;
+    if (!initialized)
+    {
+        Vertex vertices[] = {
+            {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+            {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+            {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+            {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+            {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+            {{-0.5f, 0.5f}, {1.0f, 1.0f, 0.0f}}};
+        glBindBuffer(GL_ARRAY_BUFFER, ctx.shape_vbo);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        initialized = true;
+    }
 
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    int width = 640, height = 480;
+    wl_surface_damage(ctx.wl_surfaces[window_id], 0, 0, width, height);
+    wl_surface_commit(ctx.wl_surfaces[window_id]);
+    eglSwapBuffers(ctx.egl.dpy, ctx.egl.surfaces[window_id]);
+}
+
+static const struct wl_callback_listener frame_callback_listener;
+
+struct frame_callback_args
+{
+    struct wl_surface *surface;
+    size_t window_id;
+};
+
+static void frame_callback_done(void *data, struct wl_callback *callback, uint32_t time)
+{
+    struct frame_callback_args *args = (struct frame_callback_args *)data;
+    struct wl_surface *surface = (struct wl_surface *)args->surface;
+    draw_frame(args->window_id);
+
+    if (callback)
+    {
+        wl_callback_destroy(callback);
+    }
+
+    if (surface)
+    {
+        struct wl_callback *new_callback = wl_surface_frame(surface);
+        if (new_callback)
+        {
+            wl_callback_add_listener(new_callback, &frame_callback_listener, args);
+        }
+    }
+}
+
+static const struct wl_callback_listener frame_callback_listener = {
+    .done = frame_callback_done};
+
+void setup_frame_callback(void *data)
+{
+    if (!data)
+        return;
+
+    struct frame_callback_args *args = (struct frame_callback_args *)data;
+    struct wl_surface *surface = (struct wl_surface *)args->surface;
+    draw_frame(args->window_id);
+
+    struct wl_callback *callback = wl_surface_frame(surface);
+    if (callback)
+    {
+        wl_callback_add_listener(callback, &frame_callback_listener, args);
+    }
 }
 
 static void wayland_setup(void)
@@ -584,6 +666,11 @@ static void wayland_setup(void)
     wl_registry_add_listener(ctx.wl_registry, &registry_listener, &ctx);
     wl_display_roundtrip(ctx.wl_display);
 
+    if (ctx.xdg_wm_base)
+    {
+        xdg_wm_base_add_listener(ctx.xdg_wm_base, &xdg_wm_base_listener, NULL);
+    }
+
     if (!ctx.decoration_manager)
     {
         fprintf(stderr, "xdg-decoration protocol not supported by compositor\n");
@@ -600,6 +687,16 @@ static void wayland_disconnect_display(void)
     wl_display_disconnect(ctx.wl_display);
 }
 
+static void xdg_surface_configure(void *data, struct xdg_surface *xdg_surface,
+                                  uint32_t serial)
+{
+    xdg_surface_ack_configure(xdg_surface, serial);
+}
+
+static const struct xdg_surface_listener xdg_surface_listener = {
+    .configure = xdg_surface_configure,
+};
+
 static void wayland_create_ctx(void)
 {
     static const EGLint context_attribs[] = {
@@ -615,44 +712,55 @@ static void wayland_create_ctx(void)
         exit(EXIT_FAILURE);
     }
 }
-
-static void wayland_make_ctx_current(int window_id)
-{
-    if (!eglMakeCurrent(ctx.egl.dpy, ctx.egl.surfaces[window_id], ctx.egl.surfaces[window_id], ctx.egl.ctx))
-    {
-        fprintf(stderr, "Failed to make EGL context current\n");
-        exit(EXIT_FAILURE);
-    }
-}
-
 static void wayland_create_window(void)
 {
-
     ctx.wl_surfaces[ctx.window_count] = wl_compositor_create_surface(ctx.wl_compositor);
-    assert(ctx.wl_surfaces[ctx.window_count]);
+    if (!ctx.wl_surfaces[ctx.window_count])
+    {
+        fprintf(stderr, "Failed to create wayland surface\n");
+        exit(EXIT_FAILURE);
+    }
 
-    ctx.xdg_surfaces[ctx.window_count] = xdg_wm_base_get_xdg_surface(ctx.xdg_wm_base, ctx.wl_surfaces[ctx.window_count]);
-    assert(ctx.xdg_surfaces[ctx.window_count]);
+    ctx.xdg_surfaces[ctx.window_count] = xdg_wm_base_get_xdg_surface(
+        ctx.xdg_wm_base, ctx.wl_surfaces[ctx.window_count]);
+    if (!ctx.xdg_surfaces[ctx.window_count])
+    {
+        fprintf(stderr, "Failed to create XDG surface\n");
+        exit(EXIT_FAILURE);
+    }
 
-    ctx.xdg_toplevels[ctx.window_count] = xdg_surface_get_toplevel(ctx.xdg_surfaces[ctx.window_count]);
-    assert(ctx.xdg_toplevels[ctx.window_count]);
+    if (xdg_surface_add_listener(ctx.xdg_surfaces[ctx.window_count],
+                                 &xdg_surface_listener, NULL) == -1)
+    {
+        fprintf(stderr, "Failed to add XDG surface listener\n");
+        exit(EXIT_FAILURE);
+    }
 
-    xdg_toplevel_set_title(ctx.xdg_toplevels[ctx.window_count], "Wayland Desktop OpenGL Example");
+    ctx.xdg_toplevels[ctx.window_count] = xdg_surface_get_toplevel(
+        ctx.xdg_surfaces[ctx.window_count]);
+    if (!ctx.xdg_toplevels[ctx.window_count])
+    {
+        fprintf(stderr, "Failed to create toplevel\n");
+        exit(EXIT_FAILURE);
+    }
 
-    /*
-        if (ctx.decoration_manager)
-        {
+    xdg_toplevel_set_title(ctx.xdg_toplevels[ctx.window_count],
+                           "Wayland Desktop OpenGL Example");
 
-            struct zxdg_toplevel_decoration_v1 *decoration =
-                zxdg_decoration_manager_v1_get_toplevel_decoration(ctx.decoration_manager, ctx.xdg_toplevel);
-            zxdg_toplevel_decoration_v1_set_mode(decoration, ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
-        }
+    wl_surface_commit(ctx.wl_surfaces[ctx.window_count]);
 
-    */
-    ctx.egl.windows[ctx.window_count] = wl_egl_window_create(ctx.wl_surfaces[ctx.window_count], 640, 480);
-    assert(ctx.egl.windows[ctx.window_count]);
+    wl_display_roundtrip(ctx.wl_display);
 
-    ctx.egl.surfaces[ctx.window_count] = eglCreateWindowSurface(ctx.egl.dpy, ctx.egl.conf, ctx.egl.windows[ctx.window_count], NULL);
+    ctx.egl.windows[ctx.window_count] = wl_egl_window_create(
+        ctx.wl_surfaces[ctx.window_count], 640, 480);
+    if (!ctx.egl.windows[ctx.window_count])
+    {
+        fprintf(stderr, "Failed to create EGL window\n");
+        exit(EXIT_FAILURE);
+    }
+
+    ctx.egl.surfaces[ctx.window_count] = eglCreateWindowSurface(
+        ctx.egl.dpy, ctx.egl.conf, ctx.egl.windows[ctx.window_count], NULL);
     if (ctx.egl.surfaces[ctx.window_count] == EGL_NO_SURFACE)
     {
         fprintf(stderr, "Failed to create EGL surface\n");
@@ -661,52 +769,42 @@ static void wayland_create_window(void)
 
     if (ctx.window_count == 0)
     {
-        // Create one context for all windows.
-        // First window created is the parent.
-        // Other windows created later are all children of the parent window.
         wayland_create_ctx();
         wayland_make_ctx_current(0);
         wayland_init_gl();
         wayland_setup_shared();
     }
 
-    wl_surface_commit(ctx.wl_surfaces[ctx.window_count]);
-
     wayland_setup_seperate_vao(ctx.window_count);
-
     ctx.window_count++;
 }
-
-static void wayland_render()
-{
-    while (true)
-    {
-        if (wl_display_dispatch_pending(ctx.wl_display) == -1)
-        {
-            fprintf(stderr, "Wayland dispatch error\n");
-            break;
-        }
-
-        for (size_t window_id = 0; window_id < ctx.window_count; ++window_id)
-        {
-            eglMakeCurrent(ctx.egl.dpy, ctx.egl.surfaces[window_id], ctx.egl.surfaces[window_id], ctx.egl.ctx);
-
-            draw_frame(window_id);
-
-            eglSwapBuffers(ctx.egl.dpy, ctx.egl.surfaces[window_id]);
-        }
-    }
-}
-
 int main(int argc, char *argv[])
 {
 
     wayland_setup();
     wayland_init_egl();
     wayland_create_window();
-        wayland_create_window();
+    wayland_create_window();
+    wayland_create_window();
+    wayland_create_window();
 
-    wayland_render();
+    struct frame_callback_args frame_args = {0};
+    for (size_t i = 0; i < ctx.window_count; ++i)
+    {
+        frame_args.surface = ctx.wl_surfaces[i];
+        frame_args.window_id = i;
+        setup_frame_callback(&frame_args);
+    }
+
+    while (true)
+    {
+        if (wl_display_dispatch(ctx.wl_display) == -1)
+        {
+            fprintf(stderr, "Error in Wayland event dispatch\n");
+            break;
+        }
+    }
+
     wayland_cleanup_egl();
     wayland_cleanup_gl();
     wayland_disconnect_display();

@@ -71,5 +71,5 @@ void set_shader_src_file(const char *file_path, GLuint shader)
     }
 
     glShaderSource(shader, 1, (const char *const *)&source, NULL);
-    free(source);
+   free(source);
 }
