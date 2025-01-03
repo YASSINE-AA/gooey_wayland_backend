@@ -10,6 +10,7 @@ The table below lists the features supported by the Wayland backend, along with 
 
 | Feature                          | Status       | Notes                                           |
 |----------------------------------|--------------|------------------------------------------------|
+|**Separation of Wayland Backend and Rendering Library** | Needs to be urgently done | Seperating OpenGL and Wayland logic. |
 | Wayland Protocol Support         | ✅ Implemented | Core Wayland protocol functionality.           |
 | Multi-Window Support             | ✅ Implemented | Handles multiple windows with unique contexts. |
 | EGL Integration                  | ✅ Implemented | EGL display, context, and surface management.  |
