@@ -4,7 +4,7 @@ This repo is for an OpenGL rendering backend built to support native wayland, so
 
 ![alt text](image.png)
 
-# Wayland Backend Features
+## Features
 
 The table below lists the features supported by the Wayland backend, along with those planned for future implementation.
 
