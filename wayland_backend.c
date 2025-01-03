@@ -51,11 +51,44 @@ typedef struct
     int advance;
 } Character;
 
+enum pointer_event_mask
+{
+    POINTER_EVENT_ENTER = 1 << 0,
+    POINTER_EVENT_LEAVE = 1 << 1,
+    POINTER_EVENT_MOTION = 1 << 2,
+    POINTER_EVENT_BUTTON = 1 << 3,
+    POINTER_EVENT_AXIS = 1 << 4,
+    POINTER_EVENT_AXIS_SOURCE = 1 << 5,
+    POINTER_EVENT_AXIS_STOP = 1 << 6,
+    POINTER_EVENT_AXIS_DISCRETE = 1 << 7,
+
+};
+
+struct pointer_event
+{
+    uint32_t event_mask;
+    wl_fixed_t surface_x, surface_y;
+    uint32_t button, state;
+    uint32_t time;
+    uint32_t serial;
+    struct
+    {
+        bool valid;
+        wl_fixed_t value;
+        int32_t discrete;
+
+    } axes[2];
+    uint32_t axis_source;
+};
+
 struct GooeyBackendContext
 {
     struct wl_display *wl_display;
     struct wl_registry *wl_registry;
     struct wl_compositor *wl_compositor;
+    struct wl_seat *wl_seat;
+    struct wl_pointer *wl_pointer;
+
     struct xdg_wm_base *xdg_wm_base;
     struct wl_surface **wl_surfaces;
     struct xdg_surface **xdg_surfaces;
@@ -86,6 +119,8 @@ struct GooeyBackendContext
         EGLSurface *surfaces;
         struct wl_egl_window **windows;
     } egl;
+
+    struct pointer_event pointer_event;
 };
 
 static struct GooeyBackendContext ctx = {0};
@@ -115,6 +150,205 @@ void check_shader_link(GLuint program)
         exit(EXIT_FAILURE);
     }
 }
+
+static void
+wl_pointer_enter(void *data, struct wl_pointer *wl_pointer,
+                 uint32_t serial, struct wl_surface *surface,
+                 wl_fixed_t surface_x, wl_fixed_t surface_y)
+{
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *)data;
+    context->pointer_event.event_mask |= POINTER_EVENT_ENTER;
+    context->pointer_event.serial = serial;
+    context->pointer_event.surface_x = surface_x,
+    context->pointer_event.surface_y = surface_y;
+}
+
+static void
+wl_pointer_leave(void *data, struct wl_pointer *wl_pointer,
+                 uint32_t serial, struct wl_surface *surface)
+{
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *)data;
+    context->pointer_event.serial = serial;
+    context->pointer_event.event_mask |= POINTER_EVENT_LEAVE;
+}
+
+static void
+wl_pointer_motion(void *data, struct wl_pointer *wl_pointer, uint32_t time,
+                  wl_fixed_t surface_x, wl_fixed_t surface_y)
+{
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *) data;
+    context->pointer_event.event_mask |= POINTER_EVENT_MOTION;
+    context->pointer_event.time = time;
+    context->pointer_event.surface_x = surface_x,
+    context->pointer_event.surface_y = surface_y;
+}
+
+static void
+wl_pointer_button(void *data, struct wl_pointer *wl_pointer, uint32_t serial,
+                  uint32_t time, uint32_t button, uint32_t state)
+{
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *) data;
+    context->pointer_event.event_mask |= POINTER_EVENT_BUTTON;
+    context->pointer_event.time = time;
+    context->pointer_event.serial = serial;
+    context->pointer_event.button = button,
+    context->pointer_event.state = state;
+}
+
+static void
+wl_pointer_axis(void *data, struct wl_pointer *wl_pointer, uint32_t time,
+               uint32_t axis, wl_fixed_t value)
+{
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *) data;
+       context->pointer_event.event_mask |= POINTER_EVENT_AXIS;
+       context->pointer_event.time = time;
+       context->pointer_event.axes[axis].valid = true;
+       context->pointer_event.axes[axis].value = value;
+}
+
+static void
+wl_pointer_axis_source(void *data, struct wl_pointer *wl_pointer,
+               uint32_t axis_source)
+{
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *) data;
+       context->pointer_event.event_mask |= POINTER_EVENT_AXIS_SOURCE;
+       context->pointer_event.axis_source = axis_source;
+}
+
+static void
+wl_pointer_axis_stop(void *data, struct wl_pointer *wl_pointer,
+               uint32_t time, uint32_t axis)
+{
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *) data;
+       context->pointer_event.time = time;
+       context->pointer_event.event_mask |= POINTER_EVENT_AXIS_STOP;
+       context->pointer_event.axes[axis].valid = true;
+}
+
+static void
+wl_pointer_axis_discrete(void *data, struct wl_pointer *wl_pointer,
+               uint32_t axis, int32_t discrete)
+{
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *) data;
+       context->pointer_event.event_mask |= POINTER_EVENT_AXIS_DISCRETE;
+       context->pointer_event.axes[axis].valid = true;
+       context->pointer_event.axes[axis].discrete = discrete;
+}
+
+static void
+wl_pointer_frame(void *data, struct wl_pointer *wl_pointer)
+{
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *) data;
+       struct pointer_event *event = &context->pointer_event;
+       fprintf(stderr, "pointer frame @ %d: ", event->time);
+
+       if (event->event_mask & POINTER_EVENT_ENTER) {
+               fprintf(stderr, "entered %f, %f ",
+                               wl_fixed_to_double(event->surface_x),
+                               wl_fixed_to_double(event->surface_y));
+       }
+
+       if (event->event_mask & POINTER_EVENT_LEAVE) {
+               fprintf(stderr, "leave");
+       }
+
+       if (event->event_mask & POINTER_EVENT_MOTION) {
+               fprintf(stderr, "motion %f, %f ",
+                               wl_fixed_to_double(event->surface_x),
+                               wl_fixed_to_double(event->surface_y));
+       }
+
+       if (event->event_mask & POINTER_EVENT_BUTTON) {
+               char *state = event->state == WL_POINTER_BUTTON_STATE_RELEASED ?
+                       "released" : "pressed";
+               fprintf(stderr, "button %d %s ", event->button, state);
+       }
+
+       uint32_t axis_events = POINTER_EVENT_AXIS
+               | POINTER_EVENT_AXIS_SOURCE
+               | POINTER_EVENT_AXIS_STOP
+               | POINTER_EVENT_AXIS_DISCRETE;
+       char *axis_name[2] = {
+               [WL_POINTER_AXIS_VERTICAL_SCROLL] = "vertical",
+               [WL_POINTER_AXIS_HORIZONTAL_SCROLL] = "horizontal",
+       };
+       char *axis_source[4] = {
+               [WL_POINTER_AXIS_SOURCE_WHEEL] = "wheel",
+               [WL_POINTER_AXIS_SOURCE_FINGER] = "finger",
+               [WL_POINTER_AXIS_SOURCE_CONTINUOUS] = "continuous",
+               [WL_POINTER_AXIS_SOURCE_WHEEL_TILT] = "wheel tilt",
+       };
+       if (event->event_mask & axis_events) {
+               for (size_t i = 0; i < 2; ++i) {
+                       if (!event->axes[i].valid) {
+                               continue;
+                       }
+                       fprintf(stderr, "%s axis ", axis_name[i]);
+                       if (event->event_mask & POINTER_EVENT_AXIS) {
+                               fprintf(stderr, "value %f ", wl_fixed_to_double(
+                                                       event->axes[i].value));
+                       }
+                       if (event->event_mask & POINTER_EVENT_AXIS_DISCRETE) {
+                               fprintf(stderr, "discrete %d ",
+                                               event->axes[i].discrete);
+                       }
+                       if (event->event_mask & POINTER_EVENT_AXIS_SOURCE) {
+                               fprintf(stderr, "via %s ",
+                                               axis_source[event->axis_source]);
+                       }
+                       if (event->event_mask & POINTER_EVENT_AXIS_STOP) {
+                               fprintf(stderr, "(stopped) ");
+                       }
+               }
+       }
+
+       fprintf(stderr, "\n");
+       memset(event, 0, sizeof(*event));
+}
+
+static const struct wl_pointer_listener wl_pointer_listener = {
+    .enter = wl_pointer_enter,
+    .leave = wl_pointer_leave,
+    .motion = wl_pointer_motion,
+    .button = wl_pointer_button,
+    .axis = wl_pointer_axis,
+    .frame = wl_pointer_frame,
+    .axis_source = wl_pointer_axis_source,
+    .axis_stop = wl_pointer_axis_stop,
+    .axis_discrete = wl_pointer_axis_discrete,
+};
+
+static void
+wl_seat_capabilities(void *data, struct wl_seat *wl_seat, uint32_t capabilities)
+{
+    struct GooeyBackendContext *context = (struct GooeyBackendContext *)data;
+
+    bool have_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
+
+    if (have_pointer && context->wl_pointer == NULL)
+    {
+        context->wl_pointer = wl_seat_get_pointer(context->wl_seat);
+        wl_pointer_add_listener(context->wl_pointer,
+                                &wl_pointer_listener, &ctx);
+    }
+    else if (!have_pointer && context->wl_pointer != NULL)
+    {
+        wl_pointer_release(context->wl_pointer);
+        context->wl_pointer = NULL;
+    }
+}
+
+static void
+wl_seat_name(void *data, struct wl_seat *wl_seat, const char *name)
+{
+    fprintf(stderr, "seat name: %s\n", name);
+}
+
+static const struct wl_seat_listener wl_seat_listener = {
+    .capabilities = wl_seat_capabilities,
+    .name = wl_seat_name,
+};
+
 static void handle_global(void *data, struct wl_registry *registry, uint32_t id, const char *interface, uint32_t version)
 {
     struct GooeyBackendContext *s = &ctx;
@@ -135,8 +369,10 @@ static void handle_global(void *data, struct wl_registry *registry, uint32_t id,
                                                  &zxdg_decoration_manager_v1_interface,
                                                  version);
     }
-    else if (strcmp(interface, "xdg_wm_dialog_v1") == 0)
+    else if (strcmp(interface, wl_seat_interface.name) == 0)
     {
+        s->wl_seat = wl_registry_bind(s->wl_registry, id, &wl_seat_interface, 7);
+        wl_seat_add_listener(s->wl_seat, &wl_seat_listener, s);
     }
 }
 
@@ -468,6 +704,8 @@ int main(int argc, char *argv[])
     wayland_setup();
     wayland_init_egl();
     wayland_create_window();
+        wayland_create_window();
+
     wayland_render();
     wayland_cleanup_egl();
     wayland_cleanup_gl();
